@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ЛЕС 2.0 - GLOBAL CONTROL</title>
+    <title>ЛЕС 2.0 - FINAL FIX</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --accent: #00ffcc; --panel: #111411; --ws: 5s; --wp: 2deg; }
@@ -52,8 +52,8 @@
 <body>
 
 <div id="selector">
-    <div class="mode-btn" onclick="startMode('screen')"><h2>🖥️ ЭКРАН</h2><p>Открыть на мониторе</p></div>
-    <div class="mode-btn" onclick="startMode('phone')"><h2>📱 ПУЛЬТ</h2><p>Открыть на телефоне</p></div>
+    <div class="mode-btn" onclick="startMode('screen')"><h2>🖥️ ЭКРАН</h2></div>
+    <div class="mode-btn" onclick="startMode('phone')"><h2>📱 ПУЛЬТ</h2></div>
 </div>
 
 <div id="main-wrapper">
@@ -110,16 +110,7 @@
     const $ = id => document.getElementById(id);
     let peer, conn, role, heroes = [], bgAudio = null, bgS = {z:1, x:0, y:0};
     let roomID = "";
-
-    const peerConfig = {
-        config: {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' }
-            ]
-        }
-    };
+    const PREFIX = "L-"; // Префикс для стабильности ID
 
     function startMode(m) {
         role = m;
@@ -133,42 +124,38 @@
             $('side-panel').classList.remove('hidden');
             $('toggle-panel').style.display = 'none';
             $('qr-group').style.display = 'none';
-            $('feed').style.display = 'block'; // Показываем камеру на пульте
+            $('feed').style.display = 'block';
             
-            // Кнопка ручного ввода для пульта
-            $('room-info').innerHTML += `<button onclick="manualJoin()" style="font-size:10px; padding:8px; margin-top:8px; background:var(--accent); color:#000;">⌨️ ВВЕСТИ ID ВРУЧНУЮ</button>`;
+            $('room-info').innerHTML += `<button onclick="manualJoin()" style="font-size:10px; padding:10px; margin-top:8px; background:var(--accent); color:#000;">⌨️ ВВЕСТИ ID ВРУЧНУЮ</button>`;
             
             initCamera();
-            if(urlID) {
-                roomID = urlID.toUpperCase();
-                initPeer(null, roomID);
-            } else {
-                initPeer(null, null);
-                setStatus("ВВЕДИТЕ ID КОМНАТЫ", "");
-            }
+            initPeer(null, urlID ? urlID.toUpperCase() : null);
         } else {
             roomID = Math.random().toString(36).substring(2, 6).toUpperCase();
             $('room-id-display').innerText = roomID;
-            initPeer("F2-" + roomID, null);
+            initPeer(PREFIX + roomID, null);
         }
         requestAnimationFrame(update);
     }
 
     function manualJoin() {
-        const id = prompt("Введите 4 буквы ID с экрана:");
+        const id = prompt("Введите 4 буквы с экрана:");
         if(id) {
             roomID = id.toUpperCase();
-            connectToScreen("F2-" + roomID);
+            connectToScreen(PREFIX + roomID);
         }
     }
 
     function initPeer(id, target) {
-        peer = new Peer(id, peerConfig);
+        // Базовая конфигурация без лишних настроек для стабильности
+        peer = new Peer(id);
 
         peer.on('open', (myId) => {
+            console.log("My ID:", myId);
             if(role === 'screen') setStatus("ЭКРАН ГОТОВ: " + roomID, "ok");
-            if(role === 'phone' && target) {
-                connectToScreen("F2-" + target);
+            if(role === 'phone') {
+                if(target) connectToScreen(PREFIX + target);
+                else setStatus("ЖДУ ВВОДА ID", "");
             }
         });
 
@@ -179,14 +166,16 @@
         });
 
         peer.on('error', err => {
-            console.error("PeerJS:", err.type);
-            setStatus("ОШИБКА: " + err.type, "err");
+            console.error("PeerJS Error:", err.type);
+            if(err.type === 'peer-unavailable') setStatus("ЭКРАН НЕ НАЙДЕН. ПРОВЕРЬТЕ ID", "err");
+            else setStatus("ОШИБКА: " + err.type, "err");
         });
     }
 
     function connectToScreen(targetId) {
         setStatus("ПОИСК ЭКРАНА...", "");
-        conn = peer.connect(targetId, { reliable: true });
+        if(conn) conn.close();
+        conn = peer.connect(targetId);
         setupConnEvents(conn);
     }
 
@@ -198,7 +187,6 @@
         c.on('data', d => handleData(d));
         c.on('close', () => {
             setStatus("СВЯЗЬ ПОТЕРЯНА", "err");
-            if(role === 'phone' && roomID) setTimeout(() => connectToScreen("F2-" + roomID), 3000);
         });
     }
 
