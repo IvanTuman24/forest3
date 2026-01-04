@@ -17,7 +17,7 @@
         #forest { flex: 1; position: relative; overflow: hidden; background: #000; }
         
         #bg-container { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
-        #bg-media { transition: transform 0.1s linear; will-change: transform; }
+        #bg-media { transition: transform 0.1s linear; will-change: transform; min-width: 100%; min-height: 100%; object-fit: cover; }
         .wind-effect { animation: wind var(--ws) ease-in-out infinite; }
         @keyframes wind { 0%, 100% { transform: skewX(0deg); } 50% { transform: skewX(var(--wp)); } }
         
@@ -34,7 +34,7 @@
         .group-title { font-size: 10px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; font-weight: bold; }
 
         #room-info { font-size: 14px; text-align: center; padding: 10px; background: #000; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--accent); }
-        #ai-status { padding: 8px; border-radius: 6px; font-size: 11px; text-align: center; margin-bottom: 10px; background: #1a1a1a; border: 1px solid #333; }
+        #ai-status { padding: 10px; border-radius: 6px; font-size: 11px; text-align: center; margin-bottom: 10px; background: #1a1a1a; border: 1px solid #333; min-height: 35px; }
         .status-ok { color: var(--accent); border-color: var(--accent); font-weight: bold; }
         .status-err { color: #ff4444; border-color: #ff4444; }
 
@@ -52,8 +52,8 @@
 <body>
 
 <div id="selector">
-    <div class="mode-btn" onclick="startMode('screen')"><h2>🖥️ ЭКРАН</h2></div>
-    <div class="mode-btn" onclick="startMode('phone')"><h2>📱 ПУЛЬТ</h2></div>
+    <div class="mode-btn" onclick="startMode('screen')"><h2>🖥️ ЭКРАН</h2><p>Открыть на мониторе</p></div>
+    <div class="mode-btn" onclick="startMode('phone')"><h2>📱 ПУЛЬТ</h2><p>Открыть на телефоне</p></div>
 </div>
 
 <div id="main-wrapper">
@@ -68,32 +68,32 @@
     <div id="side-panel">
         <div id="toggle-panel" onclick="$('side-panel').classList.toggle('hidden')">◀</div>
         <div class="content">
-            <div id="room-info">ROOM: <span id="room-id-display" style="color:var(--accent)">...</span></div>
+            <div id="room-info">ROOM: <span id="room-id-display" style="color:var(--accent); font-weight:bold;">...</span></div>
             <div id="ai-status">СИСТЕМА ГОТОВА</div>
 
             <div class="group">
-                <div class="group-title">1. СОЗДАНИЕ ГЕРОЯ</div>
-                <input type="password" id="api-key" placeholder="Remove.bg Key" style="width:100%; background:black; color:white; padding:8px; border:1px solid #444; margin-bottom:5px;">
-                <video id="feed" style="width:100%; border-radius:8px; background:#000;" autoplay playsinline></video>
-                <button class="btn-ai" onclick="takePhoto()">✂️ ВЫРЕЗАТЬ С КАМЕРЫ</button>
-                <button onclick="$('h-pc').click()">📂 ЗАГРУЗИТЬ С ПК</button>
+                <div class="group-title">1. ГЕРОЙ</div>
+                <input type="password" id="api-key" placeholder="Remove.bg Key" style="width:100%; background:black; color:white; padding:8px; border:1px solid #444; margin-bottom:5px; border-radius:5px;">
+                <video id="feed" style="width:100%; border-radius:8px; background:#000; display:none;" autoplay playsinline></video>
+                <button class="btn-ai" onclick="takePhoto()">✂️ ФОТО С КАМЕРЫ</button>
+                <button onclick="$('h-pc').click()">📂 ЗАГРУЗИТЬ ГЕРОЯ</button>
                 <input type="file" id="h-pc" hidden onchange="processFile(this.files[0])">
             </div>
 
             <div class="group">
                 <div class="group-title">2. ОКРУЖЕНИЕ</div>
                 <button onclick="$('bg-file').click()">🖼️ СМЕНИТЬ ФОН</button>
-                <button onclick="$('snd-file').click()" style="background:#1a4a1a">🎵 ЗВУК</button>
-                <label>ГРОМКОСТЬ ЗВУКА</label>
+                <button onclick="$('snd-file').click()" style="background:#1a4a1a">🎵 ДОБАВИТЬ ЗВУК</button>
+                <label>ГРОМКОСТЬ</label>
                 <input type="range" min="0" max="1" step="0.1" value="0.5" oninput="control('vol', this.value)">
                 
                 <label>МАСШТАБ ФОНА</label>
                 <input type="range" min="50" max="300" value="100" oninput="control('bg-z', this.value)">
                 <div style="display:flex; gap:5px;">
-                    <div style="flex:1"><label>СМЕЩЕНИЕ X</label><input type="range" min="-500" max="500" value="0" oninput="control('bg-x', this.value)"></div>
-                    <div style="flex:1"><label>СМЕЩЕНИЕ Y</label><input type="range" min="-500" max="500" value="0" oninput="control('bg-y', this.value)"></div>
+                    <div style="flex:1"><label>X</label><input type="range" min="-800" max="800" value="0" oninput="control('bg-x', this.value)"></div>
+                    <div style="flex:1"><label>Y</label><input type="range" min="-800" max="800" value="0" oninput="control('bg-y', this.value)"></div>
                 </div>
-                <label>СИЛА ПОКАЧИВАНИЯ (ВЕТЕР)</label>
+                <label>ВЕТЕР</label>
                 <input type="range" min="0" max="15" value="2" oninput="control('wind', this.value)">
 
                 <input type="file" id="bg-file" hidden onchange="uploadBg(this)">
@@ -111,23 +111,21 @@
     let peer, conn, role, heroes = [], bgAudio = null, bgS = {z:1, x:0, y:0};
     let roomID = "";
 
-    // Конфигурация для работы через разные сети (Google STUN)
     const peerConfig = {
         config: {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
-            ],
-            sdpSemantics: 'unified-plan'
-        },
-        debug: 1
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+            ]
+        }
     };
 
     function startMode(m) {
         role = m;
         $('selector').style.display = 'none';
         const urlParams = new URLSearchParams(window.location.search);
-        const urlID = urlParams.get('join');
+        let urlID = urlParams.get('join');
 
         if(role === 'phone') {
             $('forest').style.display = 'none';
@@ -135,15 +133,33 @@
             $('side-panel').classList.remove('hidden');
             $('toggle-panel').style.display = 'none';
             $('qr-group').style.display = 'none';
-            roomID = urlID || prompt("Введите ID комнаты:");
-            initPeer(null, roomID);
+            $('feed').style.display = 'block'; // Показываем камеру на пульте
+            
+            // Кнопка ручного ввода для пульта
+            $('room-info').innerHTML += `<button onclick="manualJoin()" style="font-size:10px; padding:8px; margin-top:8px; background:var(--accent); color:#000;">⌨️ ВВЕСТИ ID ВРУЧНУЮ</button>`;
+            
+            initCamera();
+            if(urlID) {
+                roomID = urlID.toUpperCase();
+                initPeer(null, roomID);
+            } else {
+                initPeer(null, null);
+                setStatus("ВВЕДИТЕ ID КОМНАТЫ", "");
+            }
         } else {
             roomID = Math.random().toString(36).substring(2, 6).toUpperCase();
             $('room-id-display').innerText = roomID;
             initPeer("F2-" + roomID, null);
-            initCamera();
         }
         requestAnimationFrame(update);
+    }
+
+    function manualJoin() {
+        const id = prompt("Введите 4 буквы ID с экрана:");
+        if(id) {
+            roomID = id.toUpperCase();
+            connectToScreen("F2-" + roomID);
+        }
     }
 
     function initPeer(id, target) {
@@ -151,8 +167,7 @@
 
         peer.on('open', (myId) => {
             if(role === 'screen') setStatus("ЭКРАН ГОТОВ: " + roomID, "ok");
-            if(target) {
-                setStatus("ПОДКЛЮЧЕНИЕ...", "");
+            if(role === 'phone' && target) {
                 connectToScreen("F2-" + target);
             }
         });
@@ -164,12 +179,13 @@
         });
 
         peer.on('error', err => {
-            console.error(err);
+            console.error("PeerJS:", err.type);
             setStatus("ОШИБКА: " + err.type, "err");
         });
     }
 
     function connectToScreen(targetId) {
+        setStatus("ПОИСК ЭКРАНА...", "");
         conn = peer.connect(targetId, { reliable: true });
         setupConnEvents(conn);
     }
@@ -182,7 +198,7 @@
         c.on('data', d => handleData(d));
         c.on('close', () => {
             setStatus("СВЯЗЬ ПОТЕРЯНА", "err");
-            if(role === 'phone') setTimeout(() => connectToScreen("F2-" + roomID), 3000);
+            if(role === 'phone' && roomID) setTimeout(() => connectToScreen("F2-" + roomID), 3000);
         });
     }
 
@@ -198,11 +214,7 @@
             if(h) {
                 if(d.name === 'h-sz') h.el.style.width = d.val + "px";
                 if(d.name === 'h-sp') h.speed = parseFloat(d.val);
-                if(d.name === 'h-vis') { 
-                    h.vis = d.val; 
-                    h.el.classList.toggle('hidden', !h.vis); 
-                    if($('vis-'+d.id)) $('vis-'+d.id).innerText = h.vis ? '👁️' : '🌑'; 
-                }
+                if(d.name === 'h-vis') { h.vis = d.val; h.el.classList.toggle('hidden', !h.vis); if($('vis-'+d.id)) $('vis-'+d.id).innerText = h.vis ? '👁️' : '🌑'; }
                 if(d.name === 'h-del') deleteHeroLocal(d.id);
             }
             $('bg-media').style.transform = `translate(${bgS.x}px, ${bgS.y}px) scale(${bgS.z})`;
@@ -222,79 +234,58 @@
         const img = document.createElement('img');
         img.src = src; img.className = 'hero'; img.id = 'h-' + id;
         const isFar = heroes.length % 2 === 0;
-        img.style.bottom = isFar ? "50%" : "10%";
-        img.style.width = isFar ? "150px" : "250px";
+        img.style.bottom = isFar ? "45%" : "5%";
+        img.style.width = isFar ? "180px" : "280px";
         img.style.zIndex = isFar ? 5 : 20;
         $('hero-layer').appendChild(img);
         
-        const hObj = { id, el: img, x: -300, speed: 2, angle: Math.random()*10, vis: true };
-        heroes.push(hObj);
+        heroes.push({ id, el: img, x: -400, speed: 2, angle: Math.random()*10, vis: true });
 
         const item = document.createElement('div');
         item.className = 'h-item'; item.id = 'ui-'+id;
         item.innerHTML = `
             <div class="h-controls">
-                <img src="${src}" style="width:40px;height:40px;object-fit:contain;background:#222;border-radius:4px;filter:saturate(1.4)">
+                <img src="${src}" style="width:45px;height:45px;object-fit:contain;background:#222;border-radius:4px;">
                 <div style="flex:1">
-                    <input type="range" min="30" max="600" value="${isFar?150:250}" oninput="control('h-sz', this.value, ${id})">
-                    <input type="range" min="0" max="10" step="0.5" value="2" oninput="control('h-sp', this.value, ${id})">
+                    <input type="range" min="30" max="800" value="${isFar?180:280}" oninput="control('h-sz', this.value, ${id})">
+                    <input type="range" min="0" max="12" step="0.5" value="2" oninput="control('h-sp', this.value, ${id})">
                 </div>
                 <button class="btn-vis" id="vis-${id}" onclick="control('h-vis', !heroes.find(x=>x.id==${id}).vis, ${id})">👁️</button>
                 <button class="btn-vis" style="background:#500" onclick="control('h-del', 0, ${id})">×</button>
             </div>
         `;
         $('hero-list').appendChild(item);
-        
         if(isNew && conn && conn.open) conn.send({type:'hero', src, id, isNew: false});
     }
 
     async function callAI(blob) {
         const key = $('api-key').value;
-        if(!key) { alert("Введите API КЛЮЧ!"); return; }
-        setStatus("🚀 ИИ ОБРАБОТКА...", "");
+        if(!key) return alert("Введите API Ключ Remove.bg!");
+        setStatus("🚀 ИИ ВЫРЕЗАЕТ...", "");
         const fd = new FormData(); fd.append('image_file', blob);
         try {
             const res = await fetch('https://api.remove.bg/v1.0/removebg', { method:'POST', headers:{'X-Api-Key':key}, body:fd });
             if(res.ok) {
                 const b = await res.blob();
                 const reader = new FileReader();
-                reader.onload = () => { 
-                    const id = Date.now(); 
-                    addHero(reader.result, id, true); 
-                    setStatus("✅ ГЕРОЙ ДОБАВЛЕН", "ok"); 
-                };
+                reader.onload = () => { addHero(reader.result, Date.now(), true); setStatus("✅ ГОТОВО", "ok"); };
                 reader.readAsDataURL(b);
-            } else { setStatus("❌ ОШИБКА ИИ", "err"); }
+            } else setStatus("❌ ОШИБКА ИИ", "err");
         } catch(e) { setStatus("❌ СБОЙ СЕТИ", "err"); }
     }
 
     function deleteHeroLocal(id) {
         const idx = heroes.findIndex(x => x.id == id);
-        if(idx > -1) { 
-            heroes[idx].el.remove(); 
-            heroes.splice(idx, 1); 
-            if($('ui-'+id)) $('ui-'+id).remove(); 
-        }
+        if(idx > -1) { heroes[idx].el.remove(); heroes.splice(idx, 1); if($('ui-'+id)) $('ui-'+id).remove(); }
     }
-
     function uploadSnd(input) { if(input.files[0]) { const r = new FileReader(); r.onload = e => { if(conn && conn.open) conn.send({type:'snd', src:e.target.result}); playSnd(e.target.result); }; r.readAsDataURL(input.files[0]); } }
     function playSnd(src) { if(bgAudio) bgAudio.pause(); bgAudio = new Audio(src); bgAudio.loop = true; bgAudio.play(); }
     function uploadBg(input) { if(input.files[0]) { const r = new FileReader(); r.onload = e => { if(conn && conn.open) conn.send({type:'bg', src:e.target.result}); $('bg-media').src = e.target.result; }; r.readAsDataURL(input.files[0]); } }
     function takePhoto() { const c = document.createElement('canvas'); const v = $('feed'); c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0); c.toBlob(b => callAI(b)); }
     function processFile(f) { if(f) callAI(f); }
     async function initCamera() { try { const s = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}); $('feed').srcObject = s; } catch(e){}}
-    
-    function setStatus(t, s) { 
-        const el = $('ai-status');
-        el.innerText = t; 
-        el.className = s === 'ok' ? 'status-ok' : (s === 'err' ? 'status-err' : ''); 
-    }
-
-    function showQR() { 
-        const url = window.location.href.split('?')[0] + "?join=" + roomID; 
-        $('qr-img').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(url)}">`; 
-        $('qr-box').style.display = $('qr-box').style.display === 'block' ? 'none' : 'block'; 
-    }
+    function setStatus(t, s) { const el = $('ai-status'); el.innerText = t; el.className = s === 'ok' ? 'status-ok' : (s === 'err' ? 'status-err' : ''); }
+    function showQR() { const url = window.location.href.split('?')[0] + "?join=" + roomID; $('qr-img').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(url)}">`; $('qr-box').style.display = $('qr-box').style.display === 'block' ? 'none' : 'block'; }
 
     function update() {
         const w = $('forest').clientWidth;
